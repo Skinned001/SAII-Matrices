@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Calculadora de Matrices</title>
+    <style>
+        .backend-section { margin-top: 15px; padding: 10px; border: 1px solid #ccc; }
+        input.error { border: 2px solid red; }
+    </style>
+</head>
+<body>
+
+    <h1>Calculadora de Matrices</h1>
+
+    <div>
+        <label>Filas: <input type="number" id="rows" value="2" min="1" onchange="init()"></label>
+        <label>Columnas: <input type="number" id="cols" value="2" min="1" onchange="init()"></label>
+        <button onclick="init()">Reiniciar Grilla</button>
+    </div>
+
+    <hr>
+
+    <h3>Matriz A</h3>
+    <div id="containerA"></div>
+
+    <h3>Matriz B</h3>
+    <div id="containerB"></div>
+
+    <hr>
+
+    <div class="backend-section">
+        <strong>Versión Local (Cliente JS):</strong>
+        <button onclick="calculateLocal('sum')">Sumar (A + B)</button>
+        <button onclick="calculateLocal('mult')">Multiplicar (A × B)</button>
+    </div>
+
+    <div class="backend-section">
+        <strong>Versión Cliente-Servidor (NodeJS - Puerto 3000):</strong>
+        <button onclick="calculateServer('sum', 3000)">Sumar en Node</button>
+        <button onclick="calculateServer('mult', 3000)">Multiplicar en Node</button>
+    </div>
+
+    <div class="backend-section">
+        <strong>Versión Cliente-Servidor (Python - Puerto 5000):</strong>
+        <button onclick="calculateServer('sum', 5000)">Sumar en Python</button>
+        <button onclick="calculateServer('mult', 5000)">Multiplicar en Python</button>
+    </div>
+
+    <h3>Resultado:</h3>
+    <p id="mensaje" style="color: red; font-weight: bold;"></p>
+    <div id="resultado"></div>
+
+    <script>
+        function init() {
+            const r = parseInt(document.getElementById('rows').value) || 1;
+            const c = parseInt(document.getElementById('cols').value) || 1;
+            
+            renderGrid('containerA', 'A', r, c);
+            renderGrid('containerB', 'B', r, c);
+            
+            document.getElementById('resultado').innerHTML = '';
+            document.getElementById('mensaje').innerText = '';
+        }
+
+        function renderGrid(id, prefix, r, c) {
+            const container = document.getElementById(id);
+            container.innerHTML = '';
+            
+            for (let i = 0; i < r; i++) {
+                for (let j = 0; j < c; j++) {
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.id = `${prefix}_${i}_${j}`;
+                    input.style.width = '60px';
+                    input.style.margin = '2px';
+                    container.appendChild(input);
+                }
+                container.appendChild(document.createElement('br'));
+            }
+        }
+
+        // Validación estricta: Verifica que no haya campos vacíos y sean números
+        function getValidatedValues(prefix, r, c) {
+            let m = [];
+            let isValid = true;
+
+            for (let i = 0; i < r; i++) {
+                let row = [];
+                for (let j = 0; j < c; j++) {
+                    const inputElement = document.getElementById(`${prefix}_${i}_${j}`);
+                    const value = inputElement.value.trim();
+                    
+                    // Validar si está vacío o no es un número válido
+                    if (value === '' || isNaN(value)) {
+                        inputElement.classList.add('error');
+                        isValid = false;
+                    } else {
+                        inputElement.classList.remove('error');
+                        row.push(parseFloat(value));
+                    }
+                }
+                m.push(row);
+            }
+            return isValid ? m : null;
+        }
+
+        function printResult(res) {
+            const resDiv = document.getElementById('resultado');
+            resDiv.innerHTML = '';
+            for (let i = 0; i < res.length; i++) {
+                for (let j = 0; j < res[i].length; j++) {
+                    const span = document.createElement('span');
+                    span.innerText = res[i][j] + ' \t';
+                    span.style.display = 'inline-block';
+                    span.style.width = '60px';
+                    resDiv.appendChild(span);
+                }
+                resDiv.appendChild(document.createElement('br'));
+            }
+        }
+
+        // Lógica Local (Cliente)
+        function calculateLocal(op) {
+            const r = parseInt(document.getElementById('rows').value);
+            const c = parseInt(document.getElementById('cols').value);
+            const mensaje = document.getElementById('mensaje');
+            document.getElementById('resultado').innerHTML = '';
+            mensaje.innerText = '';
+
+            const A = getValidatedValues('A', r, c);
+            const B = getValidatedValues('B', r, c);
+
+            if (!A || !B) {
+                mensaje.innerText = "Error: Todos los campos deben estar cargados con valores numéricos.";
+                return;
+            }
+
+            let res = [];
+            if (op === 'sum') {
+                for (let i = 0; i < r; i++) {
+                    let row = [];
+                    for (let j = 0; j < c; j++) row.push(A[i][j] + B[i][j]);
+                    res.push(row);
+                }
+            } else {
+                if (r !== c) {
+                    mensaje.innerText = "Error: Para multiplicar, las matrices deben ser cuadradas (Filas = Columnas).";
+                    return;
+                }
+                for (let i = 0; i < r; i++) {
+                    let row = [];
+                    for (let j = 0; j < c; j++) {
+                        let sum = 0;
+                        for (let k = 0; k < c; k++) sum += A[i][k] * B[k][j];
+                        row.push(sum);
+                    }
+                    res.push(row);
+                }
+            }
+            mensaje.innerText = "Cálculo realizado localmente.";
+            printResult(res);
+        }
+
+        // Lógica Cliente-Servidor (Fetch API)
+        async function calculateServer(op, port) {
+            const r = parseInt(document.getElementById('rows').value);
+            const c = parseInt(document.getElementById('cols').value);
+            const mensaje = document.getElementById('mensaje');
+            document.getElementById('resultado').innerHTML = '';
+            mensaje.innerText = '';
+
+            const A = getValidatedValues('A', r, c);
+            const B = getValidatedValues('B', r, c);
+
+            if (!A || !B) {
+                mensaje.innerText = "Error: Todos los campos deben estar cargados con valores numéricos.";
+                return;
+            }
+
+            if (op === 'mult' && r !== c) {
+                mensaje.innerText = "Error: Para multiplicar, las matrices deben ser cuadradas (Filas = Columnas).";
+                return;
+            }
+
+            try {
+                mensaje.innerText = `Calculando en el servidor (Puerto ${port})...`;
+                const response = await fetch(`http://localhost:${port}/${op}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ matrixA: A, matrixB: B })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Error en el servidor');
+                }
+
+                mensaje.innerText = `Cálculo devuelto por el servidor (Puerto ${port}).`;
+                printResult(data.result);
+
+            } catch (error) {
+                mensaje.innerText = "Error de conexión: " + error.message;
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html> 
